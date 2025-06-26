@@ -1,4 +1,3 @@
-// src/scraper.ts
 import "./auth";
 
 import fs from "fs";
@@ -10,7 +9,6 @@ baseChromium.use(stealth());
 
 const authDir = path.resolve(__dirname, "../auth");
 
-// Function to shuffle an array (Fisher-Yates algorithm)
 function shuffleArray<T>(array: T[]): T[] {
   for (let i = array.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -22,7 +20,6 @@ function shuffleArray<T>(array: T[]): T[] {
 export async function getLatestPost(
   username: string
 ): Promise<{ text: string; url: string } | null> {
-  // Read and shuffle storage paths for each call
   const availableStoragePaths = fs
     .readdirSync(authDir)
     .filter((file) => file.startsWith("X") && file.endsWith(".json"))
@@ -31,80 +28,52 @@ export async function getLatestPost(
   const shuffledStoragePaths = shuffleArray([...availableStoragePaths]);
 
   for (const storagePath of shuffledStoragePaths) {
-    let browser = null; // Declare browser for the current iteration
+    let browser = null;
     try {
-      console.log(
-        `Attempting to scrape with ${path.basename(
-          storagePath
-        )} for @${username}`
-      );
+      console.log(`🔍 Trying ${path.basename(storagePath)} for @${username}`);
       browser = await baseChromium.launch({ headless: true });
       const context = await browser.newContext({
         storageState: fs.existsSync(storagePath) ? storagePath : undefined,
       });
       const page = await context.newPage();
 
-      const url = `https://x.com/${username}`;
-      await page.goto(url, { timeout: 20000 });
+      await page.goto(`https://x.com/${username}`, { timeout: 20000 });
       await page.waitForSelector("article", { timeout: 20000 });
 
       const articles = await page.locator("article").all();
 
       for (const article of articles) {
-        const articleText = await article.innerText(); // Get text once to avoid multiple calls
-        const isPinned = articleText.includes("Pinned");
-
-        if (!isPinned) {
+        const articleText = await article.innerText();
+        if (!articleText.includes("Pinned")) {
           const text = await article.locator("div[lang]").innerText();
           const linkElement = article.locator('a[href*="/status/"]').last();
-
-          // Check if linkElement exists before trying to get attribute
           if ((await linkElement.count()) > 0) {
             const link = await linkElement.getAttribute("href");
-
             if (text && link) {
-              console.log(
-                `✅ Post found using ${path.basename(
-                  storagePath
-                )} for @${username}`
-              );
-              // Close the browser for this successful attempt
+              console.log(`✅ Post found from @${username}`);
               await browser.close();
-              return {
-                text,
-                url: `https://x.com${link}`,
-              };
+              return { text, url: `https://x.com${link}` };
             }
           }
         }
       }
-      // If no suitable article was found using this session, but no error occurred
-      console.log(
-        `🟡 No new non-pinned post found using ${path.basename(
-          storagePath
-        )} for @${username}`
-      );
+
+      console.log(`🟡 No non-pinned post from ${path.basename(storagePath)}`);
     } catch (err: any) {
       console.warn(
-        `❌ Failed to scrape with ${path.basename(
-          storagePath
-        )} for @${username}:`,
+        `❌ Failed with ${path.basename(storagePath)}:`,
         err.message
       );
     } finally {
-      // Ensure browser is closed even if an error occurs or no post is found
-      if (browser) {
-        // Check if the browser is connected before attempting to close
-        // This helps prevent errors if the browser was already closed unexpectedly
-        if (browser.isConnected()) {
+      if (browser && browser.isConnected()) {
+        try {
           await browser.close();
+        } catch (e) {
+          console.warn("⚠️ Failed to close browser:", (e as Error).message);
         }
       }
     }
   }
 
-  console.error(
-    `❌ All tried sessions failed or found no posts for @${username}`
-  );
   return null;
 }
