@@ -8,7 +8,7 @@ baseChromium.use(stealth());
 const authDir = path.resolve(__dirname, "../auth");
 const storagePaths = fs
   .readdirSync(authDir)
-  .filter((file) => file.startsWith("twitter") && file.endsWith(".json"))
+  .filter((file) => file.startsWith("X") && file.endsWith(".json"))
   .map((file) => path.join(authDir, file));
 
 export async function getLatestPost(
