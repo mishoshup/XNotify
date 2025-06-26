@@ -9,7 +9,7 @@ dotenv.config();
 
 const twilio = new Twilio(process.env.TWILIO_SID!, process.env.TWILIO_TOKEN!);
 
-const trackedUsers = ["h47172776"];
+const trackedUsers = ["livenationsg", "h47172776"];
 const seenPosts: Record<string, string> = {};
 
 async function checkPosts() {
@@ -18,7 +18,7 @@ async function checkPosts() {
 
     if (post && post.url !== seenPosts[user]) {
       seenPosts[user] = post.url;
-      const msg = `🐦 @${user} Posted:\n\n${post.text}\n\n🔗 ${post.url}`;
+      const msg = ` @${user} Posted:\n\n${post.text}\n\n🔗 ${post.url}`;
 
       await twilio.messages.create({
         body: msg,
