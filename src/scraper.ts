@@ -31,8 +31,13 @@ export async function getLatestPost(
   const shuffledStoragePaths = shuffleArray([...availableStoragePaths]);
 
   for (const storagePath of shuffledStoragePaths) {
-    let browser = null; // Declare browser outside try for finally block
+    let browser = null; // Declare browser for the current iteration
     try {
+      console.log(
+        `Attempting to scrape with ${path.basename(
+          storagePath
+        )} for @${username}`
+      );
       browser = await baseChromium.launch({ headless: true });
       const context = await browser.newContext({
         storageState: fs.existsSync(storagePath) ? storagePath : undefined,
@@ -46,45 +51,60 @@ export async function getLatestPost(
       const articles = await page.locator("article").all();
 
       for (const article of articles) {
-        const isPinned = await article
-          .innerText()
-          .then((text) => text.includes("Pinned"));
+        const articleText = await article.innerText(); // Get text once to avoid multiple calls
+        const isPinned = articleText.includes("Pinned");
+
         if (!isPinned) {
           const text = await article.locator("div[lang]").innerText();
-          const link = await article
-            .locator('a[href*="/status/"]')
-            .last()
-            .getAttribute("href");
+          const linkElement = article.locator('a[href*="/status/"]').last();
 
-          // IMPORTANT: Close the browser ONLY if you are returning a post.
-          // Otherwise, the `finally` block will handle closing on error/no post.
-          await browser.close(); 
+          // Check if linkElement exists before trying to get attribute
+          if ((await linkElement.count()) > 0) {
+            const link = await linkElement.getAttribute("href");
 
-          if (text && link) {
-            console.log(`✅ Post found using ${path.basename(storagePath)} for @${username}`);
-            return {
-              text,
-              url: `https://x.com${link}`,
-            };
+            if (text && link) {
+              console.log(
+                `✅ Post found using ${path.basename(
+                  storagePath
+                )} for @${username}`
+              );
+              // Close the browser for this successful attempt
+              await browser.close();
+              return {
+                text,
+                url: `https://x.com${link}`,
+              };
+            }
           }
         }
       }
       // If no suitable article was found using this session, but no error occurred
-      console.log(`🟡 No new non-pinned post found using ${path.basename(storagePath)} for @${username}`);
-
+      console.log(
+        `🟡 No new non-pinned post found using ${path.basename(
+          storagePath
+        )} for @${username}`
+      );
     } catch (err: any) {
       console.warn(
-        `❌ Failed to scrape with ${path.basename(storagePath)} for @${username}:`,
+        `❌ Failed to scrape with ${path.basename(
+          storagePath
+        )} for @${username}:`,
         err.message
       );
     } finally {
       // Ensure browser is closed even if an error occurs or no post is found
       if (browser) {
-        await browser.close();
+        // Check if the browser is connected before attempting to close
+        // This helps prevent errors if the browser was already closed unexpectedly
+        if (browser.isConnected()) {
+          await browser.close();
+        }
       }
     }
   }
 
-  console.error(`❌ All tried sessions failed or found no posts for @${username}`);
+  console.error(
+    `❌ All tried sessions failed or found no posts for @${username}`
+  );
   return null;
 }

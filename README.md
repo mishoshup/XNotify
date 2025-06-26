@@ -16,7 +16,7 @@
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/yourusername/xnotify.git
+git clone https://github.com/mishoshup/xnotify.git
 cd xnotify
 pnpm install
 ````
