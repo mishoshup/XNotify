@@ -32,4 +32,4 @@ async function checkPosts() {
 }
 
 checkPosts();
-setInterval(checkPosts, 15 * 1000);
+setInterval(checkPosts, 30 * 1000);
