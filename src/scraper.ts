@@ -1,3 +1,6 @@
+// src/scraper.ts
+import "./auth"; 
+
 import fs from "fs";
 import path from "path";
 import { chromium as baseChromium } from "playwright-extra";
